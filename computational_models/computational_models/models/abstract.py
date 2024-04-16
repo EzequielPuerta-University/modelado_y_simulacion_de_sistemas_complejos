@@ -62,6 +62,11 @@ class Agent(ABC):
             return NotImplemented
 
 
+class SeriesCollection:
+    # TODO: Its a placeholder for the series names, to use as a shortcut...
+    pass
+
+
 class AbstractLatticeModel(ABC):
     def __init__(
         self,
@@ -121,10 +126,10 @@ class AbstractLatticeModel(ABC):
             try:
                 if method.__is_series__:
                     self.series[method.__name__] = []
-                    if method.__to_be_in_equilibrium__:
-                        self.__equilibrium_series_name = method.__name__
+                    setattr(SeriesCollection, method.__name__, method.__name__)
             except AttributeError:
                 pass
+        setattr(type(self), "series", SeriesCollection)
 
     def _random_positions_to_swap(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         return (
@@ -163,7 +168,7 @@ class AbstractLatticeModel(ABC):
         for _ in range(max_steps):
             self.run_step()
             self.__save_series()
-            if criterion.in_equilibrium(self.series[self.__equilibrium_series_name]):
+            if criterion.in_equilibrium(self.series):
                 break
 
     def __save_series(self) -> None:
@@ -181,11 +186,9 @@ class AbstractLatticeModel(ABC):
 
 def __as_series(
     model_function: Callable[[Any], Any],
-    equilibrium_expected: bool = False,
     metadata: Dict[str, Any] | None = None,
 ) -> Callable[[Any], Any]:
     model_function.__is_series__ = True  # type: ignore[attr-defined]
-    model_function.__to_be_in_equilibrium__ = equilibrium_expected  # type: ignore[attr-defined]
     model_function.__series_metadata__ = metadata if metadata else {}  # type: ignore[attr-defined]
     return model_function
 
@@ -195,10 +198,9 @@ def as_series(model_function: Callable[[Any], Any]) -> Callable[[Any], Any]:
 
 
 def as_series_with(
-    equilibrium_expected: bool = False,
     metadata: Dict[str, Any] | None = None,
 ) -> Callable[[Any], Any]:
     def decorator(model_function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-        return __as_series(model_function, equilibrium_expected, metadata)
+        return __as_series(model_function, metadata)
 
     return decorator

@@ -121,7 +121,7 @@ class RealStateMarket(AbstractLatticeModel):
         )
         return self._process_lattice_with(action, flatten=flatten)
 
-    @as_series_with(equilibrium_expected=True)
+    @as_series
     def total_average_utility_level(self) -> float:
         total_utility = sum(self.utility_level_lattice(flatten=True))  # type: ignore[call-arg]
         return total_utility / self.length**2

@@ -45,7 +45,7 @@ class Schelling(AbstractLatticeModel):
         )
         return self._process_lattice_with(action, flatten=flatten)
 
-    @as_series_with(equilibrium_expected=True)
+    @as_series
     def total_average_satisfaction_level(self) -> float:
         satisfaction = sum(self.satisfaction_level_lattice(flatten=True))  # type: ignore[call-arg]
         return satisfaction / self.length**2
