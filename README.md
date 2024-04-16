@@ -1,2 +1,4 @@
-# modelado_y_simulacion_de_sistemas_complejos
-Modelado y Simulación de Sistemas Complejos con Aplicaciones en Economía
+# Modelado y Simulación de Sistemas Complejos con Aplicaciones en Economía
+
+> [!NOTE]
+> ### 1° Cuatrimestre 2024 - Optativa
