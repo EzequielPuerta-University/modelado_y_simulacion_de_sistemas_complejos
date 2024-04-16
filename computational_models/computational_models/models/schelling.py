@@ -1,7 +1,5 @@
 from typing import List
 
-import numpy as np
-
 from computational_models.models.abstract import AbstractLatticeModel, as_series, as_series_with
 
 
@@ -31,7 +29,8 @@ class Schelling(AbstractLatticeModel):
 
     @as_series
     def agent_types_lattice(self, flatten: bool = False) -> List[List[int]]:
-        return self._process_lattice_with(self.get_agent, flatten=flatten)
+        action = lambda i, j: self.get_agent(i, j).agent_type
+        return self._process_lattice_with(action, flatten=flatten)
 
     @as_series
     def satisfaction_level_lattice(self, flatten: bool = False) -> List[List[int]]:
@@ -39,10 +38,12 @@ class Schelling(AbstractLatticeModel):
 
     @as_series_with(metadata={"states": ["satisfied", "dissatisfied"]})
     def dissatisfaction_threshold_lattice(self, flatten: bool = False) -> List[List[int]]:
-        action = lambda i, j: self.similar_neighbors_amount(i, j) < self.tolerance
-        dissatisfaction_lattice = self._process_lattice_with(action, flatten=flatten)
-        original_lattice = np.copy(self.configuration)
-        return original_lattice + np.multiply(dissatisfaction_lattice, self.agent_types)
+        action = lambda i, j: (
+            self.get_agent(i, j).agent_type + self.agent_types
+            if self.similar_neighbors_amount(i, j) < self.tolerance
+            else self.get_agent(i, j).agent_type
+        )
+        return self._process_lattice_with(action, flatten=flatten)
 
     @as_series_with(equilibrium_expected=True)
     def total_average_satisfaction_level(self) -> float:

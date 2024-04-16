@@ -1,66 +1,24 @@
-from functools import total_ordering
 from typing import List
 from typing import cast as typing_cast
 
-import numpy as np
+from computational_models.models.abstract import (
+    AbstractLatticeModel,
+    Agent,
+    as_series,
+    as_series_with,
+)
 
-from computational_models.models.abstract import AbstractLatticeModel, as_series, as_series_with
 
-
-@total_ordering
-class RealStateAgent:
+class RealStateAgent(Agent):
     def __init__(
         self,
         agent_type: int,
         utility: float,
         capital: float = 1.0,
     ):
-        self.agent_type = agent_type
+        super(RealStateAgent, self).__init__(agent_type)
         self.utility = utility
         self.capital = capital
-
-    def __repr__(self) -> str:
-        return str(self.agent_type)
-
-    def __add__(self, delta_agent_type: int) -> int:
-        if isinstance(delta_agent_type, type(self)):
-            result = self.agent_type + delta_agent_type.agent_type
-        else:
-            result = self.agent_type + delta_agent_type
-        return result
-
-    def __sub__(self, delta_agent_type: int) -> int:
-        if isinstance(delta_agent_type, type(self)):
-            result = self.agent_type - delta_agent_type.agent_type
-        else:
-            result = self.agent_type - delta_agent_type
-        return result
-
-    def __mul__(self, factor: int) -> int:
-        if isinstance(factor, type(self)):
-            result = self.agent_type - factor.agent_type
-        else:
-            result = self.agent_type - factor
-        return result
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, int):
-            return self.agent_type == other
-        elif isinstance(other, type(self)):
-            return self.agent_type == other.agent_type
-        else:
-            return False
-
-    def __hash__(self) -> int:
-        return hash((self.agent_type,))
-
-    def __lt__(self, other: object) -> bool:
-        if isinstance(other, int):
-            return self.agent_type < other
-        elif isinstance(other, type(self)):
-            return self.agent_type < other.agent_type
-        else:
-            return NotImplemented
 
 
 class RealStateMarket(AbstractLatticeModel):
@@ -72,19 +30,18 @@ class RealStateMarket(AbstractLatticeModel):
         utility_tolerance: float = 0.85,
         **kwargs,
     ):
-        super(RealStateMarket, self).__init__(**kwargs)
         self.alpha = alpha
         self.A = A
         self.B = B
         self.utility_tolerance = utility_tolerance
-        self.configuration = self._process_lattice_with(self.create_agent)
+        super(RealStateMarket, self).__init__(**kwargs)
 
-    def create_agent(self, i: int, j: int) -> RealStateAgent:
+    def _create_agent(self, basic_agent: Agent, i: int, j: int) -> RealStateAgent:
         similar_amount = self.similar_neighbors_amount(i, j, count_myself=True)
         initial_capital = 1.0
         property_price = self.property_price(similar_amount)
         return RealStateAgent(
-            agent_type=self.get_agent(i, j),
+            agent_type=basic_agent.agent_type,
             capital=initial_capital,
             utility=self.utility(initial_capital, property_price),
         )
@@ -143,24 +100,26 @@ class RealStateMarket(AbstractLatticeModel):
 
     @as_series
     def agent_types_lattice(self, flatten: bool = False) -> List[List[int]]:
-        action = lambda i, j: self.get_real_state_agent(i, j).agent_type
+        action = lambda i, j: int(self.get_real_state_agent(i, j).agent_type)
         return self._process_lattice_with(action, flatten=flatten)
 
     @as_series
-    def utility_level_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def utility_level_lattice(self, flatten: bool = False) -> List[List[float]]:
         return self._process_lattice_with(self.utility_of, flatten=flatten)
 
     @as_series
-    def capital_level_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def capital_level_lattice(self, flatten: bool = False) -> List[List[float]]:
         action = lambda i, j: self.get_real_state_agent(i, j).capital
         return self._process_lattice_with(action, flatten=flatten)
 
     @as_series_with(metadata={"states": ["satisfied", "dissatisfied"]})
     def dissatisfaction_threshold_lattice(self, flatten: bool = False) -> List[List[int]]:
-        action = lambda i, j: self.utility_of(i, j) < self.utility_tolerance
-        dissatisfaction_lattice = self._process_lattice_with(action, flatten=flatten)
-        original_lattice = np.copy(self.configuration)
-        return original_lattice + np.multiply(dissatisfaction_lattice, self.agent_types)
+        action = lambda i, j: (
+            self.get_real_state_agent(i, j).agent_type + self.agent_types
+            if self.utility_of(i, j) < self.utility_tolerance
+            else self.get_real_state_agent(i, j).agent_type
+        )
+        return self._process_lattice_with(action, flatten=flatten)
 
     @as_series_with(equilibrium_expected=True)
     def total_average_utility_level(self) -> float:
