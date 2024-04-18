@@ -7,15 +7,16 @@ class Schelling(AbstractLatticeModel):
     def __init__(  # type: ignore[no-untyped-def]
         self,
         tolerance: int,
+        *args,
         **kwargs,
     ):
-        super(Schelling, self).__init__(**kwargs)
+        super(Schelling, self).__init__(*args, **kwargs)
         assert 1 < tolerance <= self.neighborhood.size(), (
             f"Tolerance threshold should be in range " f"(1, {self.neighborhood.size()}]"
         )
         self.tolerance: int = tolerance
 
-    def swap(self) -> None:
+    def step(self, *args) -> None:  # type: ignore[no-untyped-def]
         position_1, position_2 = self._random_positions_to_swap()
         if self.get_agent(*position_1) != self.get_agent(*position_2):
             conditions = (

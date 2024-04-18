@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import partial, total_ordering
-from typing import Any, Callable, Dict, List, Tuple, Type, cast
+from typing import Any, Callable, Dict, List, Tuple, Type, Union, cast
 
 import numpy as np
 
@@ -78,14 +78,18 @@ class AbstractLatticeModel(ABC):
         self.length: int = length
         self.neighborhood: Neighborhood = neighborhood(self.length)
         self.agent_types: int = agent_types
-        self.__configure_agents(configuration)
+        self.series_history: Dict[str, List[List[Union[int, float]]]] = {}
+        self.__raw_configuration: np.ndarray | None = configuration
+
+    def __initialize(self) -> None:
+        self.__configure_agents()
         self.__configure_series()
 
-    def __configure_agents(self, configuration: np.ndarray | None) -> None:
-        if configuration:
-            _configuration = configuration
+    def __configure_agents(self) -> None:
+        if self.__raw_configuration:
+            _configuration = self.__raw_configuration
         else:
-            _configuration = np.random.randint(self.agent_types, size=(self.length, self.length))
+            _configuration = self.__configure_random_lattice()
 
         create_agents = partial(self.__create_agent_as, self.__basic_agent, _configuration)
         self.configuration = self._process_lattice_with(create_agents)
@@ -94,6 +98,9 @@ class AbstractLatticeModel(ABC):
             self.configuration = self._process_lattice_with(create_agents)
         except NotImplementedError:
             pass
+
+    def __configure_random_lattice(self) -> np.array:
+        return np.random.randint(self.agent_types, size=(self.length, self.length))
 
     def __create_agent_as(
         self,
@@ -118,6 +125,20 @@ class AbstractLatticeModel(ABC):
     ) -> List[List[Any]]:
         result = [[action(i, j) for j in range(self.length)] for i in range(self.length)]
         return sum(result, []) if flatten else result
+
+    def __save_series_history(self, series: Tuple[str]) -> None:
+        if len(series) > 0:
+            for name in series:
+                try:
+                    history = self.series_history[name]
+                except KeyError:
+                    self.series_history[name] = []
+                    history = self.series_history[name]
+                finally:
+                    try:
+                        history.append(self.series[name])
+                    except KeyError:
+                        raise ValueError(f"There is no series named as '{name}'.")
 
     def __configure_series(self) -> None:
         self.series: Dict[str, Any] = {}
@@ -163,24 +184,27 @@ class AbstractLatticeModel(ABC):
         self,
         max_steps: int,
         criterion: EquilibriumCriterion,
+        saving_series: Tuple[str],
     ) -> None:
+        self.__initialize()
         self.__save_series()
         for _ in range(max_steps):
             self.run_step()
             self.__save_series()
             if criterion.in_equilibrium(self.series):
                 break
+        self.__save_series_history(series=saving_series)
 
     def __save_series(self) -> None:
         for name, series in self.series.items():
             series.append(getattr(self, name)())
 
     def run_step(self) -> None:
-        for _ in range(self.length**2):
-            self.swap()
+        for i, j in ((i, j) for i in range(self.length) for j in range(self.length)):
+            self.step(i, j)
 
     @abstractmethod
-    def swap(self) -> None:
+    def step(self, i: int, j: int) -> None:
         pass
 
 

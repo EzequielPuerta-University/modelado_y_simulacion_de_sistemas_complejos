@@ -28,13 +28,14 @@ class RealStateMarket(AbstractLatticeModel):
         A: float = 1 / 16,
         B: float = 0.5,
         utility_tolerance: float = 0.85,
+        *args,
         **kwargs,
     ):
         self.alpha = alpha
         self.A = A
         self.B = B
         self.utility_tolerance = utility_tolerance
-        super(RealStateMarket, self).__init__(**kwargs)
+        super(RealStateMarket, self).__init__(*args, **kwargs)
 
     def _create_agent(self, basic_agent: Agent, i: int, j: int) -> RealStateAgent:
         similar_amount = self.similar_neighbors_amount(i, j, count_myself=True)
@@ -56,7 +57,7 @@ class RealStateMarket(AbstractLatticeModel):
     def utility(self, capital: float, price: float) -> float:
         return (capital ** (self.alpha)) * (price ** (1 - self.alpha))
 
-    def swap(self) -> None:
+    def step(self, *args) -> None:  # type: ignore[no-untyped-def]
         position_1, position_2 = self._random_positions_to_swap()
         agent_1 = self.get_real_state_agent(*position_1)
         agent_2 = self.get_real_state_agent(*position_2)
