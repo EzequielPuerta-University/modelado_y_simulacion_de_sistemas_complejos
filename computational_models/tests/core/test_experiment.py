@@ -1,9 +1,9 @@
 import pytest
 
-from computational_models.core.experiment import ExperimentParameters, ExperimentParametersSet
+from computational_models.src.core.experiment import ExperimentParameters, ExperimentParametersSet
 
 
-def test_experiment_parameters_creation():
+def test_experiment_parameters_creation() -> None:
     length = 30
     tolerance = 5
     data = {"length": length, "tolerance": tolerance}
@@ -15,29 +15,30 @@ def test_experiment_parameters_creation():
     assert parameters.tolerance == parameters["tolerance"]
 
 
-def test_experiment_parameters_equality():
+def test_experiment_parameters_equality() -> None:
     data1 = {"length": 30, "tolerance": 5}
     data2 = {"length": 30, "tolerance": 6}
     assert ExperimentParameters(**data1) == ExperimentParameters(**data1)
     assert ExperimentParameters(**data1) != ExperimentParameters(**data2)
 
 
-def test_experiment_parameters_set_wrong_creation():
-    with pytest.raises(TypeError):
-        ExperimentParametersSet(**{1: 1})
+def test_experiment_parameters_set_wrong_creation() -> None:
+    with pytest.raises(TypeError) as error_msg:
+        ExperimentParametersSet(**{1: [1]})  # type: ignore[misc]
+    assert error_msg.value.args[0] == "keywords must be strings"
 
     with pytest.raises(AssertionError) as error_msg:
-        ExperimentParametersSet(**{"1": 1})
+        ExperimentParametersSet(**{"mock_parameter": 1})
     assert error_msg.value.args[0] == "Experiment parameters should be passed using lists."
 
 
-def test_experiment_parameters_set_creation():
+def test_experiment_parameters_set_creation() -> None:
     lengths = [20, 30]
     tolerances = [4, 5, 6]
     data = {"length": lengths, "tolerance": tolerances}
     parameters_set = ExperimentParametersSet(**data)
 
-    expected_parameters = [
+    _expected_parameters = [
         (20, 4),
         (20, 5),
         (20, 6),
@@ -46,7 +47,7 @@ def test_experiment_parameters_set_creation():
         (30, 6),
     ]
     expected_parameters = [
-        ExperimentParameters(length=each[0], tolerance=each[1]) for each in expected_parameters
+        ExperimentParameters(length=each[0], tolerance=each[1]) for each in _expected_parameters
     ]
 
     assert len(parameters_set) == len(lengths) * len(tolerances)
@@ -54,7 +55,7 @@ def test_experiment_parameters_set_creation():
     assert all((parameters in expected_parameters for parameters in parameters_set))
 
 
-def test_experiment_parameters_set_get_item():
+def test_experiment_parameters_set_get_item() -> None:
     lengths = [20, 30]
     tolerances = [4, 5, 6]
     data = {"length": lengths, "tolerance": tolerances}
@@ -63,7 +64,7 @@ def test_experiment_parameters_set_get_item():
     assert parameters_set["tolerance"] == tolerances
 
 
-def test_experiment_parameters_set_parameters_to_vary():
+def test_experiment_parameters_set_parameters_to_vary() -> None:
     lengths = [20]
     tolerances = [4, 5, 6]
     data = {"length": lengths, "tolerance": tolerances}
