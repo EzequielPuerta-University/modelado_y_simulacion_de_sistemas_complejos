@@ -5,9 +5,9 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
 import numpy as np
 
-from computational_models.src.core.equilibrium_criterion import EquilibriumCriterion
-from computational_models.src.core.neighborhood import Neighborhood, VonNeumann
-from computational_models.src.models.abstract.agent import Agent
+from src.models.abstract.agent import Agent
+from src.simulation.core.equilibrium_criterion import EquilibriumCriterion
+from src.simulation.core.neighborhood import Neighborhood, VonNeumann
 
 
 class AbstractLatticeModel(ABC):

@@ -1,6 +1,6 @@
 import pytest
 
-from computational_models.src.core.experiment import ExperimentParameters, ExperimentParametersSet
+from src.simulation.core.experiment import ExperimentParameters, ExperimentParametersSet
 
 
 def test_experiment_parameters_creation() -> None:

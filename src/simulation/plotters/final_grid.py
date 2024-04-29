@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Set
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from computational_models.src.core.runner import Runner
+from src.simulation.core.runner import Runner
 
 
 class FinalGridSeries:

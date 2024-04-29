@@ -1,8 +1,8 @@
 from typing import List, Tuple, Type
 
-from computational_models.src.core.equilibrium_criterion import EquilibriumCriterion
-from computational_models.src.core.experiment import ExperimentParametersSet
-from computational_models.src.models.abstract.model import AbstractLatticeModel
+from src.models.abstract.model import AbstractLatticeModel
+from src.simulation.core.equilibrium_criterion import EquilibriumCriterion
+from src.simulation.core.experiment import ExperimentParametersSet
 
 
 class Execute:

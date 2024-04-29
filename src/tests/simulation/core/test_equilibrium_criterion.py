@@ -1,9 +1,6 @@
 import pytest
 
-from computational_models.src.core.equilibrium_criterion import (
-    EquilibriumCriterion,
-    WithoutCriterion,
-)
+from src.simulation.core.equilibrium_criterion import EquilibriumCriterion, WithoutCriterion
 
 series = lambda values: {"test_series": values}
 

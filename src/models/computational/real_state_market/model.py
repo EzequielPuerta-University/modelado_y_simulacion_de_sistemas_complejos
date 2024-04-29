@@ -1,13 +1,9 @@
 from typing import List
 from typing import cast as typing_cast
 
-from computational_models.src.models.abstract.agent import Agent
-from computational_models.src.models.abstract.model import (
-    AbstractLatticeModel,
-    as_series,
-    as_series_with,
-)
-from computational_models.src.models.real_state_market.agent import RealStateAgent
+from src.models.abstract.agent import Agent
+from src.models.abstract.model import AbstractLatticeModel, as_series, as_series_with
+from src.models.computational.real_state_market.agent import RealStateAgent
 
 
 class RealStateMarket(AbstractLatticeModel):

@@ -1,10 +1,6 @@
 from typing import List
 
-from computational_models.src.models.abstract.model import (
-    AbstractLatticeModel,
-    as_series,
-    as_series_with,
-)
+from src.models.abstract.model import AbstractLatticeModel, as_series, as_series_with
 
 
 class Schelling(AbstractLatticeModel):

@@ -3,7 +3,7 @@ from typing import List, cast
 import networkx as nx
 import numpy as np
 
-from computational_models.src.models.abstract.model import AbstractLatticeModel, as_series
+from src.models.abstract.model import AbstractLatticeModel, as_series
 
 
 class Condensation(AbstractLatticeModel):

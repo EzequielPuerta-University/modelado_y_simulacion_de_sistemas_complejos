@@ -1,4 +1,4 @@
-from computational_models.src.models.abstract.agent import Agent
+from src.models.abstract.agent import Agent
 
 
 class RealStateAgent(Agent):

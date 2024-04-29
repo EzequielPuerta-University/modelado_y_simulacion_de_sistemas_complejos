@@ -2,8 +2,8 @@ from typing import List, cast
 
 import numpy as np
 
-from computational_models.src.models.abstract.model import AbstractLatticeModel, as_series
-from computational_models.src.models.game_of_life.seeds import Seed
+from src.models.abstract.model import AbstractLatticeModel, as_series
+from src.models.computational.game_of_life.seeds import Seed
 
 
 class GameOfLife(AbstractLatticeModel):

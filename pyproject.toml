@@ -54,7 +54,7 @@ exclude = '''
     | build
     | dist
   )/
-  | .computational_models/schelling.ipynb
+  |
 )
 '''
 
