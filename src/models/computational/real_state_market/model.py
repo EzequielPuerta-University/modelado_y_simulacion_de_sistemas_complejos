@@ -1,6 +1,8 @@
 from typing import List
 from typing import cast as typing_cast
 
+import numpy as np
+
 from src.models.abstract.agent import Agent
 from src.models.abstract.model import AbstractLatticeModel, as_series, as_series_with
 from src.models.computational.real_state_market.agent import RealStateAgent
@@ -42,7 +44,12 @@ class RealStateMarket(AbstractLatticeModel):
     def utility(self, capital: float, price: float) -> float:
         return (capital ** (self.alpha)) * (price ** (1 - self.alpha))
 
-    def step(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+    def step(
+        self,
+        i: int,
+        j: int,
+        configuration: np.ndarray,
+    ) -> None:
         position_1, position_2 = self._random_positions_to_swap()
         agent_1 = self.get_real_state_agent(*position_1)
         agent_2 = self.get_real_state_agent(*position_2)
@@ -75,8 +82,8 @@ class RealStateMarket(AbstractLatticeModel):
                 agent_2.capital = new_capital_2
                 agent_1.utility = new_utility_1
                 agent_2.utility = new_utility_2
-                self.set_agent(*position_1, agent_2)
-                self.set_agent(*position_2, agent_1)
+                configuration[position_1[0]][position_1[1]] = agent_2
+                configuration[position_2[0]][position_2[1]] = agent_1
 
     def utility_of(self, i: int, j: int) -> float:
         agent = self.get_real_state_agent(i, j)
@@ -85,9 +92,9 @@ class RealStateMarket(AbstractLatticeModel):
         return self.utility(agent.capital, property_price)
 
     @as_series
-    def agent_types_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def agent_types_lattice(self) -> List[List[int]]:
         action = lambda i, j: int(self.get_real_state_agent(i, j).agent_type)
-        return self._process_lattice_with(action, flatten=flatten)
+        return self._process_lattice_with(action)
 
     @as_series
     def utility_level_lattice(self, flatten: bool = False) -> List[List[float]]:
@@ -99,13 +106,13 @@ class RealStateMarket(AbstractLatticeModel):
         return self._process_lattice_with(action, flatten=flatten)
 
     @as_series_with(metadata={"states": ["satisfied", "dissatisfied"]})
-    def dissatisfaction_threshold_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def dissatisfaction_threshold_lattice(self) -> List[List[int]]:
         action = lambda i, j: (
             self.get_real_state_agent(i, j).agent_type + self.agent_types
             if self.utility_of(i, j) < self.utility_tolerance
             else self.get_real_state_agent(i, j).agent_type
         )
-        return self._process_lattice_with(action, flatten=flatten)
+        return self._process_lattice_with(action)
 
     @as_series
     def total_average_utility_level(self) -> float:

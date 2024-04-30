@@ -1,4 +1,4 @@
-from typing import List, cast
+from typing import List
 
 import networkx as nx
 import numpy as np
@@ -29,19 +29,23 @@ class Condensation(AbstractLatticeModel):
     def __condensed_amount(self, i: int, j: int) -> int:
         return self.similar_neighbors_amount(i, j, agent_type=1)
 
-    def step(self, i: int, j: int, **kwargs) -> None:  # type: ignore[no-untyped-def]
-        new_configuration = cast(np.ndarray, kwargs.get("new_configuration"))
+    def step(
+        self,
+        i: int,
+        j: int,
+        configuration: np.ndarray,
+    ) -> None:
         agent_type = self.get_agent(i, j).agent_type
         neighbors = self.__condensed_amount(i, j) + agent_type
         if agent_type == self.EVAPORATES and neighbors >= 4:
-            new_configuration[i][j].agent_type = self.CONDENSES
+            configuration[i][j].agent_type = self.CONDENSES
         if agent_type == self.CONDENSES and neighbors < 4:
-            new_configuration[i][j].agent_type = self.EVAPORATES
+            configuration[i][j].agent_type = self.EVAPORATES
 
     @as_series
-    def agent_types_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def agent_types_lattice(self) -> List[List[int]]:
         action = lambda i, j: int(self.get_agent(i, j).agent_type)
-        return self._process_lattice_with(action, flatten=flatten)
+        return self._process_lattice_with(action)
 
     @as_series
     def maximum_cluster_size(self) -> int:

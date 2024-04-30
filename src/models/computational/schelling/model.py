@@ -1,5 +1,7 @@
 from typing import List
 
+import numpy as np
+
 from src.models.abstract.model import AbstractLatticeModel, as_series, as_series_with
 
 
@@ -16,7 +18,12 @@ class Schelling(AbstractLatticeModel):
         )
         self.tolerance: int = tolerance
 
-    def step(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+    def step(
+        self,
+        i: int,
+        j: int,
+        configuration: np.ndarray,
+    ) -> None:
         position_1, position_2 = self._random_positions_to_swap()
         if self.get_agent(*position_1) != self.get_agent(*position_2):
             conditions = (
@@ -25,26 +32,26 @@ class Schelling(AbstractLatticeModel):
             )
             if all(conditions):
                 temp = self.get_agent(*position_1)
-                self.set_agent(*position_1, _with=self.get_agent(*position_2))
-                self.set_agent(*position_2, _with=temp)
+                configuration[position_1[0]][position_1[1]] = self.get_agent(*position_2)
+                configuration[position_2[0]][position_2[1]] = temp
 
     @as_series
-    def agent_types_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def agent_types_lattice(self) -> List[List[int]]:
         action = lambda i, j: self.get_agent(i, j).agent_type
-        return self._process_lattice_with(action, flatten=flatten)
+        return self._process_lattice_with(action)
 
     @as_series
     def satisfaction_level_lattice(self, flatten: bool = False) -> List[List[int]]:
         return self._process_lattice_with(self.similar_neighbors_amount, flatten=flatten)
 
     @as_series_with(metadata={"states": ["satisfied", "dissatisfied"]})
-    def dissatisfaction_threshold_lattice(self, flatten: bool = False) -> List[List[int]]:
+    def dissatisfaction_threshold_lattice(self) -> List[List[int]]:
         action = lambda i, j: (
             self.get_agent(i, j).agent_type + self.agent_types
             if self.similar_neighbors_amount(i, j) < self.tolerance
             else self.get_agent(i, j).agent_type
         )
-        return self._process_lattice_with(action, flatten=flatten)
+        return self._process_lattice_with(action)
 
     @as_series
     def total_average_satisfaction_level(self) -> float:

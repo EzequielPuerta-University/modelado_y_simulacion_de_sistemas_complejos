@@ -108,9 +108,6 @@ class AbstractLatticeModel(ABC):
     def get_agent(self, i: int, j: int) -> Agent:
         return self.configuration[i][j]
 
-    def set_agent(self, i: int, j: int, _with: Agent) -> None:
-        self.configuration[i][j] = _with
-
     def similar_neighbors_amount(
         self,
         i: int,
@@ -143,17 +140,21 @@ class AbstractLatticeModel(ABC):
         self.__save_series_history(series=saving_series)
 
     def run_step(self) -> None:
+        configuration = (
+            deepcopy(self.configuration) if self.update_simultaneously else self.configuration
+        )
+        for i, j in ((i, j) for i in range(self.length) for j in range(self.length)):
+            self.step(i, j, configuration=configuration)
         if self.update_simultaneously:
-            new_configuration = deepcopy(self.configuration)
-            for i, j in ((i, j) for i in range(self.length) for j in range(self.length)):
-                self.step(i, j, new_configuration=new_configuration)
-            self.configuration = new_configuration
-        else:
-            for i, j in ((i, j) for i in range(self.length) for j in range(self.length)):
-                self.step(i, j)
+            self.configuration = configuration
 
     @abstractmethod
-    def step(self, i: int, j: int, **kwargs) -> None:  # type: ignore[no-untyped-def]
+    def step(
+        self,
+        i: int,
+        j: int,
+        configuration: np.ndarray,
+    ) -> None:
         pass
 
 
