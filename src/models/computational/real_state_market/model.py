@@ -1,11 +1,11 @@
 from typing import List
 from typing import cast as typing_cast
 
-import numpy as np
-
 from src.models.abstract.agent import Agent
 from src.models.abstract.model import AbstractLatticeModel, as_series, as_series_with
 from src.models.computational.real_state_market.agent import RealStateAgent
+from src.models.computational.real_state_market.formulas import PriceFormula, UtilityFormula
+from src.simulation.core.lattice import Lattice
 
 
 class RealStateMarket(AbstractLatticeModel):
@@ -18,11 +18,13 @@ class RealStateMarket(AbstractLatticeModel):
         *args,
         **kwargs,
     ):
+        super(RealStateMarket, self).__init__(*args, **kwargs)
         self.alpha = alpha
         self.A = A
         self.B = B
         self.utility_tolerance = utility_tolerance
-        super(RealStateMarket, self).__init__(*args, **kwargs)
+        self.__utility_formula = UtilityFormula(self.alpha)
+        self.__price_formula = PriceFormula(self.A, self.B, self.neighborhood.size())
 
     def _create_agent(self, basic_agent: Agent, i: int, j: int) -> RealStateAgent:
         similar_amount = self.similar_neighbors_amount(i, j, count_myself=True)
@@ -30,6 +32,7 @@ class RealStateMarket(AbstractLatticeModel):
         property_price = self.property_price(similar_amount)
         return RealStateAgent(
             agent_type=basic_agent.agent_type,
+            position=(i, j),
             capital=initial_capital,
             utility=self.utility(initial_capital, property_price),
         )
@@ -38,54 +41,27 @@ class RealStateMarket(AbstractLatticeModel):
         return typing_cast(RealStateAgent, self.get_agent(i, j))
 
     def property_price(self, similar_amount: int) -> float:
-        distinct_amount = self.neighborhood.size() - similar_amount + 1
-        return self.A * (similar_amount - distinct_amount) + self.B
+        return self.__price_formula.apply(similar_amount)
 
     def utility(self, capital: float, price: float) -> float:
-        return (capital ** (self.alpha)) * (price ** (1 - self.alpha))
+        return self.__utility_formula.apply(capital, price)
 
     def step(
         self,
         i: int,
         j: int,
-        configuration: np.ndarray,
+        configuration: Lattice,
     ) -> None:
         position_1, position_2 = self._random_positions_to_swap()
         agent_1 = self.get_real_state_agent(*position_1)
         agent_2 = self.get_real_state_agent(*position_2)
-        target_similar_amount_1 = self.similar_neighbors_amount(
-            *position_2,
-            agent_type=agent_1.agent_type,
-            count_myself=True,
-        )
-        target_similar_amount_2 = self.similar_neighbors_amount(
-            *position_1,
-            agent_type=agent_2.agent_type,
-            count_myself=True,
-        )
-
-        target_new_price_1 = self.property_price(target_similar_amount_1)
-        target_new_price_2 = self.property_price(target_similar_amount_2)
-        average_price = (target_new_price_2 + target_new_price_1) / 2
-        has_enough_capital_1 = target_new_price_1 - average_price - agent_1.capital < 0
-        has_enough_capital_2 = target_new_price_2 - average_price - agent_2.capital < 0
-
-        if has_enough_capital_1 and has_enough_capital_2:
-            new_capital_1 = agent_1.capital + target_new_price_2 - average_price
-            new_capital_2 = agent_2.capital + target_new_price_1 - average_price
-            new_utility_1 = self.utility(new_capital_1, target_new_price_1)
-            new_utility_2 = self.utility(new_capital_2, target_new_price_2)
-            delta_utility_1 = new_utility_1 - agent_1.utility
-            delta_utility_2 = new_utility_2 - agent_2.utility
-            if delta_utility_1 > 0 and delta_utility_2 > 0:
-                agent_1.capital = new_capital_1
-                agent_2.capital = new_capital_2
-                agent_1.utility = new_utility_1
-                agent_2.utility = new_utility_2
-                configuration[position_1[0]][position_1[1]] = agent_2
-                configuration[position_2[0]][position_2[1]] = agent_1
+        agent_1.try_sale_against(counterparty=agent_2, model=self, configuration=configuration)
 
     def utility_of(self, i: int, j: int) -> float:
+        agent = self.get_real_state_agent(i, j)
+        return agent.utility
+
+    def updated_utility_of(self, i: int, j: int) -> float:
         agent = self.get_real_state_agent(i, j)
         similar_amount = self.similar_neighbors_amount(i, j, count_myself=True)
         property_price = self.property_price(similar_amount)
@@ -101,6 +77,10 @@ class RealStateMarket(AbstractLatticeModel):
         return self._process_lattice_with(self.utility_of, flatten=flatten)
 
     @as_series
+    def updated_utility_level_lattice(self, flatten: bool = False) -> List[List[float]]:
+        return self._process_lattice_with(self.updated_utility_of, flatten=flatten)
+
+    @as_series
     def capital_level_lattice(self, flatten: bool = False) -> List[List[float]]:
         action = lambda i, j: self.get_real_state_agent(i, j).capital
         return self._process_lattice_with(action, flatten=flatten)
@@ -114,12 +94,17 @@ class RealStateMarket(AbstractLatticeModel):
         )
         return self._process_lattice_with(action)
 
-    @as_series
+    @as_series_with(depends=("utility_level_lattice",))
     def total_average_utility_level(self) -> float:
-        total_utility = sum(self.utility_level_lattice(flatten=True))  # type: ignore[call-arg]
-        return total_utility / self.length**2
+        total_utilities = self._flatten("utility_level_lattice")
+        return sum(total_utilities) / self.length**2
 
-    @as_series
+    @as_series_with(depends=("updated_utility_level_lattice",))
+    def total_average_updated_utility_level(self) -> float:
+        total_utilities = self._flatten("updated_utility_level_lattice")
+        return sum(total_utilities) / self.length**2
+
+    @as_series_with(depends=("capital_level_lattice",))
     def total_average_capital_level(self) -> float:
-        total_capital = sum(self.capital_level_lattice(flatten=True))  # type: ignore[call-arg]
-        return total_capital / self.length**2
+        total_capitals = self._flatten("capital_level_lattice")
+        return sum(total_capitals) / self.length**2

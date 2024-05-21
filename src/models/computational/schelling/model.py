@@ -1,8 +1,7 @@
 from typing import List
 
-import numpy as np
-
 from src.models.abstract.model import AbstractLatticeModel, as_series, as_series_with
+from src.simulation.core.lattice import Lattice
 
 
 class Schelling(AbstractLatticeModel):
@@ -22,7 +21,7 @@ class Schelling(AbstractLatticeModel):
         self,
         i: int,
         j: int,
-        configuration: np.ndarray,
+        configuration: Lattice,
     ) -> None:
         position_1, position_2 = self._random_positions_to_swap()
         if self.get_agent(*position_1) != self.get_agent(*position_2):
@@ -32,8 +31,8 @@ class Schelling(AbstractLatticeModel):
             )
             if all(conditions):
                 temp = self.get_agent(*position_1)
-                configuration[position_1[0]][position_1[1]] = self.get_agent(*position_2)
-                configuration[position_2[0]][position_2[1]] = temp
+                configuration.set(*position_1, _with=self.get_agent(*position_2))
+                configuration.set(*position_2, _with=temp)
 
     @as_series
     def agent_types_lattice(self) -> List[List[int]]:

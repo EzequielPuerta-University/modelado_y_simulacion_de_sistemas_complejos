@@ -18,10 +18,13 @@ class NumericalSeries:
         xaxes_log: bool = False,
         yaxes_log: bool = False,
     ) -> None:
-        _use_series_history = (
-            len(runner.experiments) == 1
-            and len(runner.experiments[0].series_history[series_name]) > 1
-        )
+        try:
+            _use_series_history = (
+                len(runner.experiments) == 1
+                and len(runner.experiments[0].series_history[series_name]) > 1
+            )
+        except KeyError:
+            _use_series_history = False
 
         figure = go.Figure()
         for experiment in runner.experiments:

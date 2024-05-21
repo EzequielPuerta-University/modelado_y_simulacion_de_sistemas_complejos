@@ -1,9 +1,9 @@
-from typing import List
+from typing import List, cast
 
 import networkx as nx
-import numpy as np
 
 from src.models.abstract.model import AbstractLatticeModel, as_series
+from src.simulation.core.lattice import Lattice
 
 
 class Condensation(AbstractLatticeModel):
@@ -17,14 +17,16 @@ class Condensation(AbstractLatticeModel):
         **kwargs,
     ):
         self.probability: float = probability
+        length = kwargs.get("length")
+        configuration = kwargs.get(
+            "configuration", Lattice.with_probability(self.probability, cast(int, length))
+        )
         super(Condensation, self).__init__(  # type: ignore[misc]
-            update_simultaneously=True,
             *args,
+            update_simultaneously=True,
+            configuration=configuration,
             **kwargs,
         )
-
-    def _configure_random_lattice(self) -> np.array:
-        return (np.random.rand(self.length, self.length) < self.probability).astype(int)
 
     def __condensed_amount(self, i: int, j: int) -> int:
         return self.similar_neighbors_amount(i, j, agent_type=1)
@@ -33,14 +35,14 @@ class Condensation(AbstractLatticeModel):
         self,
         i: int,
         j: int,
-        configuration: np.ndarray,
+        configuration: Lattice,
     ) -> None:
         agent_type = self.get_agent(i, j).agent_type
         neighbors = self.__condensed_amount(i, j) + agent_type
         if agent_type == self.EVAPORATES and neighbors >= 4:
-            configuration[i][j].agent_type = self.CONDENSES
+            configuration.at(i, j).agent_type = self.CONDENSES
         if agent_type == self.CONDENSES and neighbors < 4:
-            configuration[i][j].agent_type = self.EVAPORATES
+            configuration.at(i, j).agent_type = self.EVAPORATES
 
     @as_series
     def agent_types_lattice(self) -> List[List[int]]:

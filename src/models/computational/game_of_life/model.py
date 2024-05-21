@@ -1,9 +1,8 @@
-from typing import List
-
-import numpy as np
+from typing import List, cast
 
 from src.models.abstract.model import AbstractLatticeModel, as_series
 from src.models.computational.game_of_life.seeds import Seed
+from src.simulation.core.lattice import Lattice
 
 
 class GameOfLife(AbstractLatticeModel):
@@ -12,14 +11,14 @@ class GameOfLife(AbstractLatticeModel):
 
     def __init__(self, seeds: List[Seed], *args, **kwargs):  # type: ignore[no-untyped-def]
         length = kwargs.get("length")
-        _configuration = np.zeros((length, length))
+        configuration = kwargs.get("configuration", Lattice.zeros(cast(int, length)))
         self.seeds = seeds
         for seed in self.seeds:
-            seed._apply_on(_configuration)
+            seed.apply_on(configuration)
 
         super(GameOfLife, self).__init__(
             *args,
-            configuration=_configuration,  # type: ignore[misc]
+            configuration=configuration,  # type: ignore[misc]
             update_simultaneously=True,
             **kwargs,
         )
@@ -28,7 +27,7 @@ class GameOfLife(AbstractLatticeModel):
         self,
         i: int,
         j: int,
-        configuration: np.ndarray,
+        configuration: Lattice,
     ) -> None:
         amount = self.similar_neighbors_amount(i, j, agent_type=self.ALIVE)
         if self.get_agent(i, j).agent_type == self.ALIVE:
@@ -41,7 +40,7 @@ class GameOfLife(AbstractLatticeModel):
                 new_state = self.ALIVE
             else:
                 new_state = self.DEAD
-        configuration[i][j].agent_type = new_state
+        configuration.at(i, j).agent_type = new_state
 
     @as_series
     def agent_types_lattice(self) -> List[List[int]]:

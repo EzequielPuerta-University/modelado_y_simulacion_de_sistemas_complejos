@@ -19,6 +19,15 @@ class Neighborhood(ABC):
         pass
 
 
+class Immediate(Neighborhood):
+    @classmethod
+    def size(cls) -> int:
+        return 2
+
+    def indexes_for(self, i: int, j: int) -> List[Tuple[int, int]]:
+        return [(self._norm(x), self._norm(y)) for x, y in [(i, j - 1), (i, j + 1)]]
+
+
 class VonNeumann(Neighborhood):
     @classmethod
     def size(cls) -> int:

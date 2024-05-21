@@ -3,10 +3,12 @@ from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, Dict, List, Tuple, Type, Union
 
+import networkx as nx
 import numpy as np
 
 from src.models.abstract.agent import Agent
-from src.simulation.core.equilibrium_criterion import EquilibriumCriterion
+from src.simulation.core.equilibrium_criterion import AbstractCriterion
+from src.simulation.core.lattice import Lattice
 from src.simulation.core.neighborhood import Neighborhood, VonNeumann
 
 
@@ -14,47 +16,48 @@ class AbstractLatticeModel(ABC):
     def __init__(
         self,
         length: int,
-        configuration: np.ndarray | None = None,
+        configuration: Lattice | np.ndarray | None = None,
         neighborhood: Type[Neighborhood] = VonNeumann,
         agent_types: int = 2,
         update_simultaneously: bool = False,
     ):
-        self.length: int = length
-        self.neighborhood: Neighborhood = neighborhood(self.length)
-        self.agent_types: int = agent_types
-        self.update_simultaneously: bool = update_simultaneously
+        self.length = length
+        self.neighborhood = neighborhood(self.length)
+        self.agent_types = agent_types
+        self.update_simultaneously = update_simultaneously
         self.series_history: Dict[str, List[List[Union[int, float]]]] = {}
-        self.__initial_configuration: np.ndarray | None = configuration
+        self.__initial_configuration = configuration
 
     def __initialize(self) -> None:
         self.__configure_agents()
         self.__configure_series()
 
     def __configure_agents(self) -> None:
-        if self.__initial_configuration is not None:
-            raw_configuration = self.__initial_configuration
+        raw = deepcopy(self.__initial_configuration)
+        if isinstance(raw, Lattice):
+            pass
+        elif raw is not None:
+            raw = Lattice(raw)
         else:
-            raw_configuration = self._configure_random_lattice()
+            raw = Lattice.random(self.agent_types, self.length)
+        self.configuration = raw
 
-        create_agents = partial(self.__create_agent_as, self.__basic_agent, raw_configuration)
-        self.configuration = self._process_lattice_with(create_agents)
         try:
-            create_agents = partial(self.__create_agent_as, self._create_agent, self.configuration)
-            self.configuration = self._process_lattice_with(create_agents)
+            for method in [self.__basic_agent, self._create_agent]:
+                self._process_lattice_with(
+                    partial(self.__create_agent_as, method),
+                    inplace=True,
+                )
         except NotImplementedError:
             pass
-
-    def _configure_random_lattice(self) -> np.array:
-        return np.random.randint(self.agent_types, size=(self.length, self.length))
 
     def __create_agent_as(
         self,
         method: Callable[[int, int, int], Agent],
-        _configuration: np.ndarray,
         i: int,
         j: int,
     ) -> Agent:
-        return method(_configuration[i][j], i, j)
+        return method(self.configuration.at(i, j), i, j)
 
     def __basic_agent(self, agent_type: int, i: int, j: int) -> Agent:
         return Agent(agent_type=agent_type)
@@ -66,24 +69,41 @@ class AbstractLatticeModel(ABC):
         raise NotImplementedError
 
     def _process_lattice_with(
-        self, action: Callable[[int, int], Any], flatten: bool = False
+        self,
+        action: Callable[[int, int], Any],
+        inplace: bool = False,
+        flatten: bool = False,
     ) -> List[List[Any]]:
-        result = [[action(i, j) for j in range(self.length)] for i in range(self.length)]
-        return sum(result, []) if flatten else result
+        return self.configuration.process_with(  # type: ignore[return-value]
+            action,
+            inplace=inplace,
+            flatten=flatten,
+        )
+
+    ROOT = "ROOT"
 
     def __configure_series(self) -> None:
         self.series: Dict[str, Any] = {}
+        self.__dependencies__ = nx.DiGraph()
+        self.__dependencies__.add_node(self.ROOT)
         for method_name in dir(self):
             method = getattr(self, method_name)
             try:
                 if method.__is_series__:
                     self.series[method.__name__] = []
+                    if method.__depends__:
+                        for dependency in method.__depends__:
+                            self.__dependencies__.add_edge(method.__name__, dependency)
+                    else:
+                        self.__dependencies__.add_edge(method.__name__, self.ROOT)
             except AttributeError:
                 pass
+        bfs_edges = list(nx.bfs_edges(self.__dependencies__, self.ROOT, reverse=True))
+        self._sorted_series_names = [series_name for dependency, series_name in bfs_edges]
 
     def __take_snapshot(self) -> None:
-        for name, series in self.series.items():
-            series.append(getattr(self, name)())
+        for name in self._sorted_series_names:
+            self.series[name].append(getattr(self, name)())
 
     def __save_series_history(self, series: Tuple[str]) -> None:
         if len(series) > 0:
@@ -106,7 +126,7 @@ class AbstractLatticeModel(ABC):
         )
 
     def get_agent(self, i: int, j: int) -> Agent:
-        return self.configuration[i][j]
+        return self.configuration.at(i, j)
 
     def similar_neighbors_amount(
         self,
@@ -127,7 +147,7 @@ class AbstractLatticeModel(ABC):
     def run_with(
         self,
         max_steps: int,
-        criterion: EquilibriumCriterion,
+        criterion: AbstractCriterion,
         saving_series: Tuple[str],
     ) -> None:
         self.__initialize()
@@ -153,16 +173,21 @@ class AbstractLatticeModel(ABC):
         self,
         i: int,
         j: int,
-        configuration: np.ndarray,
+        configuration: Lattice,
     ) -> None:
         pass
+
+    def _flatten(self, series_name: str) -> List[Any]:
+        return sum(self.series[series_name][-1], [])
 
 
 def __as_series(
     model_function: Callable[[Any], Any],
+    depends: Tuple[str] | None = None,
     metadata: Dict[str, Any] | None = None,
 ) -> Callable[[Any], Any]:
     model_function.__is_series__ = True  # type: ignore[attr-defined]
+    model_function.__depends__ = depends  # type: ignore[attr-defined]
     model_function.__series_metadata__ = metadata if metadata else {}  # type: ignore[attr-defined]
     return model_function
 
@@ -172,9 +197,10 @@ def as_series(model_function: Callable[[Any], Any]) -> Callable[[Any], Any]:
 
 
 def as_series_with(
+    depends: Tuple[str] | None = None,
     metadata: Dict[str, Any] | None = None,
 ) -> Callable[[Any], Any]:
     def decorator(model_function: Callable[[Any], Any]) -> Callable[[Any], Any]:
-        return __as_series(model_function, metadata)
+        return __as_series(model_function, depends, metadata)
 
     return decorator

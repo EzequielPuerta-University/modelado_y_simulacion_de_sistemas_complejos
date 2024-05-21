@@ -2,11 +2,18 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from src.simulation.core.lattice import Lattice
+
 
 class Seed(ABC):
     def __init__(self, i: int, j: int) -> None:
         self.i = i
         self.j = j
+
+    def apply_on(self, lattice: Lattice) -> None:
+        temp = np.array(lattice.configuration)
+        self._apply_on(temp)
+        lattice.update_with(temp)
 
     @abstractmethod
     def _apply_on(self, configuration: np.ndarray) -> None:

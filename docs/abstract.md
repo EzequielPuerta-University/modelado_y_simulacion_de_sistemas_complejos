@@ -81,7 +81,29 @@ La serie se guardará en un atributo `series: dict`, de la instancia del modelo 
 
 `Y().series["agent_types_lattice"][0] = ` $M_{T_0}$
 
-En algunos casos puede ser útil relacionar los datos obtenidos en una serie con cierta *metadata* a visualizar en los *plotters*. Esto se puede lograr usando el decorador `as_series_with`.
+Existe otro decorador similar, llamado `as_series_with`. El mismo permite dos cosas:
+
+1. Definir dependencias para la serie. Por ejemplo, podríamos tener una serie que proyecta determinado atributo para cada agente, generando una grilla $n \times n$ de dichos valores. Y a su vez podríamos necesitar crear una nueva serie que vaya tomando en cada iteración el promedio de los valores de la grilla mencionada. Si llamáramos directamente al método de la primer serie, estaríamos recalculando de nuevo toda la grilla. Para no recalcular todos los valores, podemos indicar que la segunda serie dependa de la primera y acceder entonces a los valores ya calculados y almacenados en el atributo `self.series`.
+
+```python
+from src.models.abstract.model import AbstractLatticeModel, as_series
+
+class Y(AbstractLatticeModel):
+    ...
+    @as_series
+    def agent_utilities_lattice(self) -> List[List[int]]:
+        action = lambda i, j: self.get_agent(i, j).utility
+        return self._process_lattice_with(action)
+
+    @as_series_with(depends=("agent_utilities_lattice",)))
+    def total_average_utility_level(self) -> float:
+        total_utilities = self._flatten("agent_utilities_lattice")
+        return sum(total_utilities) / self.length**2
+```
+> [!TIP]
+> El método `_flatten` es útil para obtener el último valor de una serie multidimensional, por ejemplo grillas (o listas de listas), en un formato aplanado (sin listas anidadas).
+
+2. En algunos casos puede ser útil relacionar los datos obtenidos en una serie con cierta *metadata* a visualizar en los *plotters*. Esto se puede lograr usando el decorador `as_series_with` mencionado previamente.
 
 > [!IMPORTANT]
 > Ésto puede tener un costo computacional importante, en espacio y tiempo. No es la intención del presente código lograr optimizar este procedimiento, por lo tanto se debe utilizar con criterio.

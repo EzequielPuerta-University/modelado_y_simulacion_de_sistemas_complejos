@@ -1,7 +1,7 @@
 from typing import List, Tuple, Type
 
 from src.models.abstract.model import AbstractLatticeModel
-from src.simulation.core.equilibrium_criterion import EquilibriumCriterion
+from src.simulation.core.equilibrium_criterion import AbstractCriterion
 from src.simulation.core.experiment import ExperimentParametersSet
 
 
@@ -16,7 +16,7 @@ class Runner:
         self,
         model: Type[AbstractLatticeModel],
         experiment_parameters_set: ExperimentParametersSet,
-        equilibrium_criterion: EquilibriumCriterion,
+        equilibrium_criterion: AbstractCriterion,
         max_steps: int = 150,
         repeat: Execute = Execute(),
     ):

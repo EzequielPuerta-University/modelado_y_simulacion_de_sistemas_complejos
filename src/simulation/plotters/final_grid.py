@@ -79,7 +79,7 @@ class FinalGridSeries:
                 "title": "<br>".join(
                     [f"{attribute}={getattr(experiment, attribute)}" for attribute in params]
                 ),
-                "subplot_titles": ["t_0", f"t_{len(series)}"],
+                "subplot_titles": ["t_0", f"t_{len(series)-1}"],
                 "tickvals": metadata["tickvals"],
                 "labelalias": metadata["labelalias"],
             }
