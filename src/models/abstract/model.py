@@ -20,15 +20,20 @@ class AbstractLatticeModel(ABC):
         neighborhood: Type[Neighborhood] = VonNeumann,
         agent_types: int = 2,
         update_simultaneously: bool = False,
+        update_sorted_by_agent_type: bool = False,
     ):
         self.length = length
         self.neighborhood = neighborhood(self.length)
         self.agent_types = agent_types
         self.update_simultaneously = update_simultaneously
+        self.update_sorted_by_agent_type = update_sorted_by_agent_type
         self.series_history: Dict[str, List[List[Union[int, float]]]] = {}
         self.__initial_configuration = configuration
 
     def __initialize(self) -> None:
+        self._by_type: Dict[int, List[Tuple[int, int]]] = {
+            _type: [] for _type in range(self.agent_types)
+        }
         self.__configure_agents()
         self.__configure_series()
 
@@ -163,8 +168,13 @@ class AbstractLatticeModel(ABC):
         configuration = (
             deepcopy(self.configuration) if self.update_simultaneously else self.configuration
         )
-        for i, j in ((i, j) for i in range(self.length) for j in range(self.length)):
-            self.step(i, j, configuration=configuration)
+        if self.update_sorted_by_agent_type:
+            for _type in range(self.agent_types):
+                for position in self._by_type[_type]:
+                    self.step(*position, configuration=configuration)
+        else:
+            for i, j in ((i, j) for i in range(self.length) for j in range(self.length)):
+                self.step(i, j, configuration=configuration)
         if self.update_simultaneously:
             self.configuration = configuration
 
