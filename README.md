@@ -9,6 +9,8 @@ Re-Implementaciones de los modelos de simulación vistos en la materia.
 
 El repositorio posee un conjunto de [*notebooks*](notebooks/) donde fui realizando diversos analisis de los modelos.
 
+Para ello utilicé el paquete [***Simulab***](https://github.com/EzequielPuerta/simulab), desarrollado por mí durante la cursada de la presente materia. Originalmente era parte de este repositorio, pero fue extraído a un paquete aislado para poder ser publicado en PyPi. A continuación, la documentación original de *Simulab*, en español pero no actualizada.
+
 ## Framework
 
 * Modelos
